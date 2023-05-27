@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 PROXY = "http://127.0.0.1:1087" 
 DEFAULT_DURATION = "2h"
 PURGE_INTERVAL = 11 # in seconds
+running = False
 # PROXY = None
 # SERVER_WHITELIST = []
 
@@ -24,8 +25,6 @@ def run_bot():
     else:
         bot = commands.Bot(intents = intents, command_prefix='!')
     
-    running = False
-
     @bot.event
     async def on_ready():
         print(f"{bot.user} is running")
@@ -33,9 +32,10 @@ def run_bot():
     @bot.command(name="kms") 
     async def set_duration(ctx, duration):
         try:
-            if running:
-                purge_channel.stop()
-                running = False
+            # global running
+            # if running:
+            #     purge_channel.stop()
+            #     running = False
 
             # parse duration 
             duration = re.search('\d+[smh]', duration)
@@ -59,13 +59,14 @@ def run_bot():
 
             @tasks.loop(seconds = PURGE_INTERVAL, reconnect = True)
             async def purge_channel():
-                running = True
                 await ctx.channel.purge(
                     limit = None, 
                     check = lambda msg: not msg.pinned and not msg.id == self_msg.id, 
                     before = datetime.now() - dtime,
                     oldest_first = True
-                )         
+                )    
+                # global running 
+                # running = True     
                 # await ctx.channel.send("earth server has been wiped :)")
 
             # @tasks.loop(seconds = dtime.total_seconds(), reconnect = True)
