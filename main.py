@@ -24,6 +24,8 @@ def run_bot():
     else:
         bot = commands.Bot(intents = intents, command_prefix='!')
     
+    running = False
+
     @bot.event
     async def on_ready():
         print(f"{bot.user} is running")
@@ -31,6 +33,10 @@ def run_bot():
     @bot.command(name="kms") 
     async def set_duration(ctx, duration):
         try:
+            if running:
+                purge_channel.stop()
+                running = False
+
             # parse duration 
             duration = re.search('\d+[smh]', duration)
             dtime = None
@@ -48,17 +54,18 @@ def run_bot():
             else: 
                 dtime = timedelta(hours = int(num.group(0)))
 
-            await ctx.channel.send(f"messages in this channel will be deleted after {duration}")
+            self_msg = await ctx.channel.send(f"messages in this channel will be deleted after {duration}")
             print(dtime)
 
             @tasks.loop(seconds = PURGE_INTERVAL, reconnect = True)
             async def purge_channel():
+                running = True
                 await ctx.channel.purge(
                     limit = None, 
-                    check = lambda msg: not msg.pinned and not msg.author == bot.user, 
+                    check = lambda msg: not msg.pinned and not msg.id == self_msg.id, 
                     before = datetime.now() - dtime,
                     oldest_first = True
-                ) 
+                )         
                 # await ctx.channel.send("earth server has been wiped :)")
 
             # @tasks.loop(seconds = dtime.total_seconds(), reconnect = True)
