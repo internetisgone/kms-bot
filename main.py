@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 PROXY = "http://127.0.0.1:1087" 
 DEFAULT_DURATION = "2h"
+PURGE_INTERVAL = 11 # in seconds
 # PROXY = None
 # SERVER_WHITELIST = []
 
@@ -50,27 +51,30 @@ def run_bot():
             await ctx.channel.send(f"messages in this channel will be deleted after {duration}")
             print(dtime)
 
-            @tasks.loop(seconds = dtime.total_seconds(), reconnect = True)
-            async def delete_msg():
-                async for msg in ctx.channel.history():
-                    time_diff = (discord.utils.utcnow() - msg.created_at).total_seconds()
-                    # ignore pinned msg and msg sent by the bot itself
-                    if time_diff > dtime.total_seconds() and not msg.pinned and not msg.author == bot.user: 
-                        await msg.delete()
-                        # await ctx.channel.send(f"deleting msg {msg}")
-                        await asyncio.sleep(0.5) # avoid rate limits
+            @tasks.loop(seconds = PURGE_INTERVAL, reconnect = True)
+            async def purge_channel():
+                await ctx.channel.purge(
+                    limit = None, 
+                    check = lambda msg: not msg.pinned and not msg.author == bot.user, 
+                    before = datetime.now() - dtime,
+                    oldest_first = True
+                ) 
+                # await ctx.channel.send("earth server has been wiped :)")
+
+            # @tasks.loop(seconds = dtime.total_seconds(), reconnect = True)
+            # async for msg in ctx.channel.history():
+            #     time_diff = (discord.utils.utcnow() - msg.created_at).total_seconds()
+            #     # ignore pinned msg and msg sent by the bot itself
+            #     if time_diff > dtime.total_seconds() and not msg.pinned and not msg.author == bot.user: 
+            #         await msg.delete()
+            #         # await ctx.channel.send(f"deleting msg {msg}")
+            #         await asyncio.sleep(1) # avoid rate limits
             
+
             # start the task
-            delete_msg.start()
+            purge_channel.start()
 
-            # await ctx.channel.purge(
-            #     limit = None, 
-            #     check = lambda msg: not msg.pinned, 
-            #     before = datetime.now() - dtime,
-            #     oldest_first = True
-            # ) 
-            # await ctx.channel.send("earth server has been wiped :)")
-
+            
         except Exception as e:
             print(e)
             await ctx.channel.send(f"kms failed, {e}")
