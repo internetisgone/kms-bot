@@ -27,15 +27,9 @@ def run_bot():
     async def on_ready():
         print(f"{bot.user} is running")
 
-    # @tasks.loop(seconds=1.0)
-    # async def test():
-    #     print("retard")
-
     @bot.command(name="kms") 
-    async def delete_msg(ctx, duration):
+    async def set_duration(ctx, duration):
         try:
-            # if not duration:
-            
             # parse duration 
             duration = re.search('\d+[smh]', duration)
             dtime = None
@@ -53,16 +47,21 @@ def run_bot():
             else: 
                 dtime = timedelta(hours = int(num.group(0)))
 
-            print(duration)
+            await ctx.channel.send(f"messages in this channel will be deleted after {duration}")
             print(dtime)
 
-            messages = await ctx.channel.history()
-            for msg in messages:
-                time_diff = (discord.utils.utcnow() - msg.created_at).total_seconds()
-                if time_diff > dtime.total_seconds() and not msg.pinned: 
-                    # await msg.delete()
-                    ctx.channel.send(f"deleting msg {msg}")
-                    await asyncio.sleep(0.5) # avoid rate limits
+            @tasks.loop(seconds = dtime.total_seconds(), reconnect = True)
+            async def delete_msg():
+                async for msg in ctx.channel.history():
+                    time_diff = (discord.utils.utcnow() - msg.created_at).total_seconds()
+                    # ignore pinned msg and msg sent by the bot itself
+                    if time_diff > dtime.total_seconds() and not msg.pinned and not msg.author == bot.user: 
+                        await msg.delete()
+                        # await ctx.channel.send(f"deleting msg {msg}")
+                        await asyncio.sleep(0.5) # avoid rate limits
+            
+            # start the task
+            delete_msg.start()
 
             # await ctx.channel.purge(
             #     limit = None, 
@@ -74,6 +73,7 @@ def run_bot():
 
         except Exception as e:
             print(e)
+            await ctx.channel.send(f"kms failed, {e}")
 
 
     bot.run(os.getenv("DISCORD_KEY"))
