@@ -1,6 +1,8 @@
 # autodelete-discord-bot
 
-deletes messages in a discord channel after a certain amount of time. supports different settings in multiple channels. pinned messages are kept.
+deletes messages in a discord channel after a certain amount of time. supports different settings for multiple channels. pinned messages are kept. uses [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge).<br>
+
+rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete)
 
 ## usage
 `!kms 24h`<br>
