@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # for dev #
-PROXY = "http://127.0.0.1:1087" 
-DISCORD_KEY = os.getenv("DISCORD_KEY_TEST")
+# PROXY = "http://127.0.0.1:1087" 
+# DISCORD_KEY = os.getenv("DISCORD_KEY_TEST")
 
 # for production #
-# PROXY = None
-# DISCORD_KEY = os.getenv("DISCORD_KEY")
+PROXY = None
+DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 COMMAND_PREFIX = "!"
 DEFAULT_DURATION = "2h"
