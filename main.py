@@ -30,8 +30,8 @@ async def purge_channel(channel, dtime, self_msg_id):
         oldest_first = True
     )   
 
-async def start_purge_task_loop(channel, dtime, self_msg_id):
-    # restart task if already running this channel
+async def init_purge_task_loop(channel, dtime, self_msg_id):
+    # stop prev task in this channel
     if channel.id in active_tasks:
         # print(f"restarting task {active_tasks[channel.id]} in channel {channel}")
         active_tasks[channel.id].stop()
@@ -76,7 +76,7 @@ def run_bot():
             print(dtime) 
 
             # start / restart task in a certain channel
-            await start_purge_task_loop(ctx.channel, dtime, self_msg.id)
+            await init_purge_task_loop(ctx.channel, dtime, self_msg.id)
 
         except Exception as e:
             print(e)
