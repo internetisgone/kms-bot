@@ -57,7 +57,7 @@ def run_bot():
     async def set_duration(ctx, duration):
         try:
             # parse duration 
-            duration = re.search('\d+[smh]', duration)
+            duration = re.search('\d+[smhd]', duration)
             dtime = None
             if not duration:
                 duration = DEFAULT_DURATION
@@ -69,6 +69,8 @@ def run_bot():
                 dtime = timedelta(seconds = int(num.group(0)))
             elif "m" in duration:
                 dtime = timedelta(minutes = int(num.group(0)))
+            elif "d" in duration:
+                dtime = timedelta(days = int(num.group(0)))
             else: 
                 dtime = timedelta(hours = int(num.group(0)))
 
