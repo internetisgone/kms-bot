@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # for dev #
-# PROXY = "http://127.0.0.1:1087" 
-# DISCORD_KEY = os.getenv("DISCORD_KEY_TEST")
+PROXY = "http://127.0.0.1:1087" 
+DISCORD_KEY = os.getenv("DISCORD_KEY_TEST")
 
 # for production #
-PROXY = None
-DISCORD_KEY = os.getenv("DISCORD_KEY")
+# PROXY = None
+# DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 COMMAND_PREFIX = "!"
 DEFAULT_DURATION = "2h"
@@ -30,11 +30,13 @@ async def purge_channel(channel, dtime, self_msg_id):
         oldest_first = True
     )   
 
+def stop_task(channel_id):
+    if channel_id in active_tasks:
+        print(f"stopping task {active_tasks[channel_id]} in channel {channel_id}")
+        active_tasks[channel_id].stop()
+
 async def init_purge_task_loop(channel, dtime, self_msg_id):
-    # stop prev task in this channel
-    if channel.id in active_tasks:
-        # print(f"restarting task {active_tasks[channel.id]} in channel {channel}")
-        active_tasks[channel.id].stop()
+    stop_task(channel.id)
 
     interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
 
@@ -52,37 +54,48 @@ def run_bot():
     @bot.event
     async def on_ready():
         print(f"{bot.user} is running")
+        # todo check db for existing tasks
 
     @bot.command(name = "kms") 
-    async def set_duration(ctx, duration):
+    async def set_duration(ctx, usr_input):
         try:
-            # parse duration 
-            duration = re.search('\d+[smhd]', duration)
-            dtime = None
-            if not duration:
-                duration = DEFAULT_DURATION
+            if "cancel" in usr_input:
+                # cancel task
+                if ctx.channel.id in active_tasks:
+                    stop_task(ctx.channel.id)
+                    del active_tasks[ctx.channel.id]
+                    await ctx.channel.send("kms cancelled")
+                else: 
+                    await ctx.channel.send("nothing to cancel in this channel")
+
             else: 
-                duration = duration.group(0)
+                # try parse duration 
+                duration = re.search('\d+[smhd]', usr_input)
+                dtime = None
+                if not duration:
+                    duration = DEFAULT_DURATION
+                else: 
+                    duration = duration.group(0)
 
-            num = re.search('\d+', duration)
-            if "s" in duration:
-                dtime = timedelta(seconds = int(num.group(0)))
-            elif "m" in duration:
-                dtime = timedelta(minutes = int(num.group(0)))
-            elif "d" in duration:
-                dtime = timedelta(days = int(num.group(0)))
-            else: 
-                dtime = timedelta(hours = int(num.group(0)))
+                num = re.search('\d+', duration)
+                if "s" in duration:
+                    dtime = timedelta(seconds = int(num.group(0)))
+                elif "m" in duration:
+                    dtime = timedelta(minutes = int(num.group(0)))
+                elif "d" in duration:
+                    dtime = timedelta(days = int(num.group(0)))
+                else: 
+                    dtime = timedelta(hours = int(num.group(0)))
 
-            self_msg = await ctx.channel.send(f"messages in this channel will be deleted after {duration}.")
-            print(dtime) 
+                self_msg = await ctx.channel.send(f"messages in this channel will be deleted after {duration}.")
+                print(dtime) 
 
-            # start / restart task in a certain channel
-            await init_purge_task_loop(ctx.channel, dtime, self_msg.id)
+                # start / restart task in a certain channel
+                await init_purge_task_loop(ctx.channel, dtime, self_msg.id)
 
         except Exception as e:
             print(e)
-            await ctx.channel.send(f"kms failed, {e}")
+            await ctx.channel.send(f"failed to kms: {e}")
 
 
     bot.run(DISCORD_KEY)
