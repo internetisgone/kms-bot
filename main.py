@@ -24,7 +24,7 @@ active_tasks = {} # key: channel id, value: task
 
 async def purge_channel(channel, dtime, self_msg_id):
     await channel.purge(
-        limit = None, # todo might need to set a limit 
+        limit = 100,
         check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
         before = datetime.now() - dtime,
         oldest_first = True
@@ -163,6 +163,7 @@ def run_bot():
                 duration = re.search('\d+[smhd]', usr_input)
                 dtime = None
                 if not duration:
+                    # invalid input
                     units = ["day(s)", "hour(s)", "minute(s)", "second(s)"]
                     rand_unit_index = random.randint(0, 3)
                     rand_duration = random.randint(1, 10)
