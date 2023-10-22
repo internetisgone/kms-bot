@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 import re
+import random
 from dotenv import load_dotenv
 import aiosqlite
 
@@ -17,7 +18,6 @@ PROXY = None
 DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 COMMAND_PREFIX = "!"
-DEFAULT_DURATION = "2h"
 PURGE_INTERVAL = 33 # in seconds
 
 active_tasks = {} # key: channel id, value: task
@@ -35,7 +35,8 @@ async def set_purge_task_loop(channel, dtime):
     interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
 
     new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
-    self_msg = await channel.send(f"messages in this channel will be deleted after {str(dtime)}.")
+    formatted_duration = get_formatted_duration(dtime)
+    self_msg = await channel.send(f"messages in this channel will be deleted after {formatted_duration}.")
     new_task.start(channel, dtime, self_msg.id)
 
     active_tasks[channel.id] = new_task
@@ -76,6 +77,7 @@ async def update_task_db(channel_id, dtime_seconds):
         # print("----------- updated kms_tasks -----------")
         # for row in rows:
         #     print(row)
+        # print("-----------------------------------------")
 
         await db.close()
 
@@ -95,6 +97,7 @@ async def delete_task_db(channel_id):
         # print("----------- updated kms_tasks -----------")
         # for row in rows:
         #     print(row)
+        # print("-----------------------------------------")
 
         await db.close()
     except Exception as e:
@@ -104,6 +107,20 @@ def stop_task(channel_id):
     if channel_id in active_tasks:
         print(f"stopping task {active_tasks[channel_id]} in channel {channel_id}")
         active_tasks[channel_id].stop()
+
+def get_formatted_duration(dtime):
+    seconds = int(dtime.total_seconds())
+    if seconds % 86400 == 0:
+        days = seconds//86400
+        return str(days) + " days" if days > 1 else str(days) + " day"
+    elif seconds % 3600 == 0:
+        hours = seconds//3600
+        return str(hours) + " hours" if hours > 1 else str(hours) + " hour"
+    elif seconds % 60 == 0:
+        minutes = seconds//60
+        return str(minutes) + " minutes" if minutes > 1 else str(minutes) + " minute"
+    else:
+        return str(seconds) + " seconds" if seconds > 1 else str(seconds) + " second"
 
 def run_bot():
     intents = discord.Intents.default()
@@ -146,26 +163,28 @@ def run_bot():
                 duration = re.search('\d+[smhd]', usr_input)
                 dtime = None
                 if not duration:
-                    duration = DEFAULT_DURATION
+                    units = ["day(s)", "hour(s)", "minute(s)", "second(s)"]
+                    rand_unit_index = random.randint(0, 3)
+                    rand_duration = random.randint(1, 10)
+                    await ctx.channel.send(f"Σ(°Д°) invalid duration. try `!kms {rand_duration}{units[rand_unit_index][0]}` to delete messages older than {rand_duration} {units[rand_unit_index]}")
                 else: 
                     duration = duration.group(0)
+                    num = re.search('\d+', duration)
+                    if "s" in duration:
+                        dtime = timedelta(seconds = int(num.group(0)))
+                    elif "m" in duration:
+                        dtime = timedelta(minutes = int(num.group(0)))
+                    elif "d" in duration:
+                        dtime = timedelta(days = int(num.group(0)))
+                    else: 
+                        dtime = timedelta(hours = int(num.group(0)))
 
-                num = re.search('\d+', duration)
-                if "s" in duration:
-                    dtime = timedelta(seconds = int(num.group(0)))
-                elif "m" in duration:
-                    dtime = timedelta(minutes = int(num.group(0)))
-                elif "d" in duration:
-                    dtime = timedelta(days = int(num.group(0)))
-                else: 
-                    dtime = timedelta(hours = int(num.group(0)))
+                    # todo limit dtime max value
 
-                # todo limit dtime max value
-
-                # start / restart task in a channel
-                await set_purge_task_loop(ctx.channel, dtime)
-                # update db
-                await update_task_db(ctx.channel.id, dtime.total_seconds())
+                    # start / restart task in a channel
+                    await set_purge_task_loop(ctx.channel, dtime)
+                    # update db
+                    await update_task_db(ctx.channel.id, dtime.total_seconds())
 
         except Exception as e:
             print(e)

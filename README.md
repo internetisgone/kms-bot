@@ -1,19 +1,19 @@
 # autodelete-discord-bot
 deletes messages in a discord channel after a certain amount of time using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
 
-rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which inspired this project
-## features
 - works across channels and servers
 - pinned messages are kept
 - purge tasks are kept in a local SQLite database and resumed on bot restart<br>
 
+rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which inspired this project
+
 ## usage
-### start or reset purge task in a channel
+#### start or reset purge task in a channel
 `!kms 2d`<br>
 `!kms 24h`<br>
 `!kms 30m`<br>
 `!kms 1s`<br>
-### cancel purge task in a channel
+#### cancel purge task in a channel
 `!kms cancel`
 
 ## running your own instance
