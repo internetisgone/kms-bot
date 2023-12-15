@@ -1,2 +1,4 @@
 .env
 kms.db
+.DS_Store
+.venv/
