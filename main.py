@@ -36,7 +36,7 @@ async def set_purge_task_loop(channel, dtime):
 
     new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
     formatted_duration = get_formatted_duration(dtime)
-    self_msg = await channel.send(f"messages older than {formatted_duration} in this channel will be deleted on a rolling basis.")
+    self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
     new_task.start(channel, dtime, self_msg.id)
 
     active_tasks[channel.id] = new_task
