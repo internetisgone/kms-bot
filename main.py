@@ -136,7 +136,7 @@ def run_bot():
                     stop_task(ctx.channel.id)                 
                     await delete_task_db(ctx.channel.id) # remove from db
                     del active_tasks[ctx.channel.id] # remove from dict
-                    await ctx.channel.send("kms cancelled")
+                    await ctx.channel.send("kms cancelled.")
                 else: 
                     await ctx.channel.send("nothing to cancel in this channel.")
 
