@@ -36,7 +36,7 @@ async def set_purge_task_loop(channel, dtime):
 
     new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
     formatted_duration = get_formatted_duration(dtime)
-    self_msg = await channel.send(f"messages in this channel will be deleted after {formatted_duration}.")
+    self_msg = await channel.send(f"messages older than {formatted_duration} in this channel will be deleted on a rolling basis.")
     new_task.start(channel, dtime, self_msg.id)
 
     active_tasks[channel.id] = new_task
@@ -70,15 +70,6 @@ async def update_task_db(channel_id, dtime_seconds):
         else:
             await cursor.execute(f"UPDATE kms_tasks SET purge_duration_seconds = {dtime_seconds} WHERE channel_id = {channel_id}")
         await db.commit()
-
-        # show table
-        # await cursor.execute("SELECT * FROM kms_tasks")
-        # rows = await cursor.fetchall()
-        # print("----------- updated kms_tasks -----------")
-        # for row in rows:
-        #     print(row)
-        # print("-----------------------------------------")
-
         await db.close()
 
     except Exception as e:
@@ -90,22 +81,13 @@ async def delete_task_db(channel_id):
         cursor = await db.cursor()
         await cursor.execute(f"DELETE FROM kms_tasks WHERE channel_id = {channel_id}") 
         await db.commit()
-
-        # show table
-        # await cursor.execute("SELECT * FROM kms_tasks")
-        # rows = await cursor.fetchall()
-        # print("----------- updated kms_tasks -----------")
-        # for row in rows:
-        #     print(row)
-        # print("-----------------------------------------")
-
         await db.close()
     except Exception as e:
         print(e)
 
 def stop_task(channel_id):
     if channel_id in active_tasks:
-        print(f"stopping task {active_tasks[channel_id]} in channel {channel_id}")
+        # print(f"stopping task {active_tasks[channel_id]} in channel {channel_id}")
         active_tasks[channel_id].stop()
 
 def get_formatted_duration(dtime):
@@ -131,7 +113,7 @@ def run_bot():
 
     @bot.event
     async def on_ready():
-        print(f"{bot.user} is running")
+        print(f"{datetime.utcnow()} {bot.user} is online")
 
         # check the db for existing tasks 
         tasks = await get_all_tasks_db()
@@ -141,13 +123,13 @@ def run_bot():
             channel_id, dtime = task
             channel = bot.get_channel(channel_id)
             dtime = timedelta(seconds = dtime)
-            print(f"found task in channel {channel_id} with dtime {dtime}")
-
+            print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
             await set_purge_task_loop(channel, dtime)
-                        
+            
     @bot.command(name = "kms") 
     async def set_duration(ctx, usr_input):
         try:
+            usr_input = usr_input.lower()
             if "cancel" in usr_input:
                 # cancel task
                 if ctx.channel.id in active_tasks:
@@ -156,7 +138,7 @@ def run_bot():
                     del active_tasks[ctx.channel.id] # remove from dict
                     await ctx.channel.send("kms cancelled")
                 else: 
-                    await ctx.channel.send("nothing to cancel in this channel")
+                    await ctx.channel.send("nothing to cancel in this channel.")
 
             else: 
                 # try parse duration 
@@ -166,8 +148,8 @@ def run_bot():
                     # invalid input
                     units = ["day(s)", "hour(s)", "minute(s)", "second(s)"]
                     rand_unit_index = random.randint(0, 3)
-                    rand_duration = random.randint(1, 10)
-                    await ctx.channel.send(f"Σ(°Д°) invalid duration. try `!kms {rand_duration}{units[rand_unit_index][0]}` to delete messages older than {rand_duration} {units[rand_unit_index]}")
+                    rand_duration = random.randint(1, 11)
+                    await ctx.channel.send(f"Σ(°Д°) invalid duration. try `!kms {rand_duration}{units[rand_unit_index][0]}` to delete messages older than {rand_duration} {units[rand_unit_index]}.")
                 else: 
                     duration = duration.group(0)
                     num = re.search('\d+', duration)
@@ -180,12 +162,16 @@ def run_bot():
                     else: 
                         dtime = timedelta(hours = int(num.group(0)))
 
-                    # todo limit dtime max value
+                    if dtime > timedelta(days = 333):
+                        await ctx.channel.send(f"Σ(°Д°) maximum duration is 333 days.") 
+                        return
 
                     # start / restart task in a channel
                     await set_purge_task_loop(ctx.channel, dtime)
                     # update db
                     await update_task_db(ctx.channel.id, dtime.total_seconds())
+
+                    print(f"{datetime.utcnow()} updated purge task in guild {ctx.guild}")
 
         except Exception as e:
             print(e)
