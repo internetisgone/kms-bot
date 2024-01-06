@@ -147,10 +147,10 @@ def run_bot():
             channel = bot.get_channel(channel_id)
             dtime = timedelta(seconds = dtime)
             if (not channel or channel.type != discord.ChannelType.text):
-                print(f"channel {channel_id} is not a text channel")
-                return
-            print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
-            await set_purge_task_loop(channel, dtime)
+                print(f"channel {channel_id} is not a text channel")             
+            else: 
+                print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
+                await set_purge_task_loop(channel, dtime)
 
         # set status
         game = discord.Game("!kms help")
