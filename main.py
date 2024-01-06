@@ -50,15 +50,19 @@ async def purge_channel(channel, dtime, self_msg_id):
     )   
 
 async def set_purge_task_loop(channel, dtime):
-    stop_task(channel.id) # stop prev task if there's any
-    interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
+    try:
+        stop_task(channel.id) # stop prev task if there's any
+        interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
 
-    new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
-    formatted_duration = get_formatted_duration(dtime)
-    self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
-    new_task.start(channel, dtime, self_msg.id)
+        new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
+        formatted_duration = get_formatted_duration(dtime)
+        self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
+        new_task.start(channel, dtime, self_msg.id)
 
-    active_tasks[channel.id] = new_task
+        active_tasks[channel.id] = new_task
+    except Exception as e:
+        print(e)
+        print(f"failed to start task in channel {channel}")
 
 async def get_all_tasks_db():
     tasks = None
@@ -142,6 +146,9 @@ def run_bot():
             channel_id, dtime = task
             channel = bot.get_channel(channel_id)
             dtime = timedelta(seconds = dtime)
+            if (not channel or channel.type != discord.ChannelType.text):
+                print(f"channel {channel_id} is not a text channel")
+                return
             print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
             await set_purge_task_loop(channel, dtime)
 
@@ -152,6 +159,9 @@ def run_bot():
     @bot.command(name = "kms") 
     async def kms(ctx, usr_input):
         try:
+            # only support text channels for now
+            if ctx.channel.type != discord.ChannelType.text:
+                return
             usr_input = usr_input.lower()
             if "help" in usr_input:
                 # send help text
