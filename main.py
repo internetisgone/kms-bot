@@ -42,27 +42,27 @@ get help:
 active_tasks = {} # key: channel id, value: task
 
 async def purge_channel(channel, dtime, self_msg_id):
-    await channel.purge(
-        limit = 100,
-        check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
-        before = datetime.now() - dtime,
-        oldest_first = True
-    )   
+    try:
+        await channel.purge(
+            limit = 100,
+            check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
+            before = datetime.now() - dtime,
+            oldest_first = True
+        )  
+    except Exception as e:
+        print(e) 
+        # todo handle missing perms
 
 async def set_purge_task_loop(channel, dtime):
-    try:
-        stop_task(channel.id) # stop prev task if there's any
-        interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
+    stop_task(channel.id) # stop prev task if there's any
+    interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
 
-        new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
-        formatted_duration = get_formatted_duration(dtime)
-        self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
-        new_task.start(channel, dtime, self_msg.id)
+    new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
+    formatted_duration = get_formatted_duration(dtime)
+    self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
+    new_task.start(channel, dtime, self_msg.id)
 
-        active_tasks[channel.id] = new_task
-    except Exception as e:
-        print(e)
-        print(f"failed to start task in channel {channel}")
+    active_tasks[channel.id] = new_task
 
 async def get_all_tasks_db():
     tasks = None
@@ -147,7 +147,9 @@ def run_bot():
             channel = bot.get_channel(channel_id)
             dtime = timedelta(seconds = dtime)
             if (not channel or channel.type != discord.ChannelType.text):
-                print(f"channel {channel_id} is not a text channel")             
+                # delete invalid data 
+                print(f"channel {channel_id} is not a text channel or kms has no access to it")             
+                await delete_task_db(channel_id)
             else: 
                 print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
                 await set_purge_task_loop(channel, dtime)
@@ -161,6 +163,7 @@ def run_bot():
         try:
             # only support text channels for now
             if ctx.channel.type != discord.ChannelType.text:
+                await ctx.channel.send("kms only supports text channels for now.")
                 return
             usr_input = usr_input.lower()
             if "help" in usr_input:
@@ -181,10 +184,6 @@ def run_bot():
                 dtime = None
                 if not duration:
                     # invalid input
-                    # units = ["day(s)", "hour(s)", "minute(s)", "second(s)"]
-                    # rand_unit_index = random.randint(0, 3)
-                    # rand_duration = random.randint(1, 11)
-                    # await ctx.channel.send(f"Σ(°Д°) invalid duration. try `!kms {rand_duration}{units[rand_unit_index][0]}` to delete messages older than {rand_duration} {units[rand_unit_index]}.")
                     await ctx.channel.send(f"Σ(°Д°) invalid input. type `!kms help` to see available commands.")
                 else: 
                     duration = duration.group(0)
