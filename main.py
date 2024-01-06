@@ -19,6 +19,25 @@ DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 COMMAND_PREFIX = "!"
 PURGE_INTERVAL = 33 # in seconds
+MAX_DURATION = timedelta(days = 3333)
+MIN_DURATION = timedelta(seconds = 1)
+HELP_TEXT = """
+HOW TO KMS
+                                       
+purge old messages:
+`!kms {duration in seconds, minutes, hours, or days}`
+for example,             
+`!kms 30s`
+`!kms 5m`
+`!kms 24h`
+`!kms 2d`
+
+stop purge task: 
+`!kms stop`
+                                       
+get help:
+`!kms help`
+"""
 
 active_tasks = {} # key: channel id, value: task
 
@@ -125,31 +144,38 @@ def run_bot():
             dtime = timedelta(seconds = dtime)
             print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
             await set_purge_task_loop(channel, dtime)
+
+        # set status
+        game = discord.Game("!kms help")
+        await bot.change_presence(status = discord.Status.online, activity = game)
             
     @bot.command(name = "kms") 
-    async def set_duration(ctx, usr_input):
+    async def kms(ctx, usr_input):
         try:
             usr_input = usr_input.lower()
-            if "cancel" in usr_input:
-                # cancel task
+            if "help" in usr_input:
+                # send help text
+                await ctx.channel.send(HELP_TEXT)
+            elif "stop" in usr_input:
+                # try stop task
                 if ctx.channel.id in active_tasks:
                     stop_task(ctx.channel.id)                 
                     await delete_task_db(ctx.channel.id) # remove from db
                     del active_tasks[ctx.channel.id] # remove from dict
-                    await ctx.channel.send("kms cancelled.")
+                    await ctx.channel.send("kms stopped.")
                 else: 
-                    await ctx.channel.send("nothing to cancel in this channel.")
-
+                    await ctx.channel.send("nothing to stop in this channel.")
             else: 
                 # try parse duration 
                 duration = re.search('\d+[smhd]', usr_input)
                 dtime = None
                 if not duration:
                     # invalid input
-                    units = ["day(s)", "hour(s)", "minute(s)", "second(s)"]
-                    rand_unit_index = random.randint(0, 3)
-                    rand_duration = random.randint(1, 11)
-                    await ctx.channel.send(f"Σ(°Д°) invalid duration. try `!kms {rand_duration}{units[rand_unit_index][0]}` to delete messages older than {rand_duration} {units[rand_unit_index]}.")
+                    # units = ["day(s)", "hour(s)", "minute(s)", "second(s)"]
+                    # rand_unit_index = random.randint(0, 3)
+                    # rand_duration = random.randint(1, 11)
+                    # await ctx.channel.send(f"Σ(°Д°) invalid duration. try `!kms {rand_duration}{units[rand_unit_index][0]}` to delete messages older than {rand_duration} {units[rand_unit_index]}.")
+                    await ctx.channel.send(f"Σ(°Д°) invalid input. type `!kms help` to see available commands.")
                 else: 
                     duration = duration.group(0)
                     num = re.search('\d+', duration)
@@ -162,9 +188,14 @@ def run_bot():
                     else: 
                         dtime = timedelta(hours = int(num.group(0)))
 
-                    if dtime > timedelta(days = 333):
-                        await ctx.channel.send(f"Σ(°Д°) maximum duration is 333 days.") 
-                        return
+                    if dtime < MIN_DURATION:
+                        dtime = MIN_DURATION
+                        formatted_duration = get_formatted_duration(MIN_DURATION)
+                        await ctx.channel.send(f"minimun duration to kms is {formatted_duration}.")
+                    if dtime > MAX_DURATION:
+                        dtime = MAX_DURATION
+                        formatted_duration = get_formatted_duration(MAX_DURATION)
+                        await ctx.channel.send(f"maximum duration to kms is {formatted_duration}.") 
 
                     # start / restart task in a channel
                     await set_purge_task_loop(ctx.channel, dtime)
