@@ -1,5 +1,5 @@
 # KMS bot
-periodically deletes old messages in a discord channel using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
+periodically deletes old messages in a discord text channel using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
 - works across channels and servers
 - pinned messages are kept
 - purge tasks are kept in a local SQLite database and resumed on bot restart<br>
@@ -10,12 +10,15 @@ rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which ins
 ### start or reset purge task in a channel
 `!kms 2d`<br>
 `!kms 24h`<br>
-`!kms 30m`<br>
-`!kms 1s`<br>
-### cancel purge task in a channel
-`!kms cancel`
+`!kms 5m`<br>
+`!kms 30s`<br>
+### stop purge task in a channel
+`!kms stop`
+### get available commands
+`!kms help`
 
 ## running your own instance
+python 3.8 or higher is required<br>
 - install dependencies `pip install -r requirements.txt`
 - create a `.env` file using the template below
 - go to discord developer portal and create a new application 
@@ -25,5 +28,5 @@ rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which ins
 
 ## .env
 ```
-DISCORD_KEY = "123456"
+DISCORD_KEY="123456"
 ```
