@@ -25,17 +25,42 @@ git clone https://github.com/internetisgone/kms-bot.git
 cd kms-bot
 ```
 ### create a bot user
-go to discord developer portal and create a new application<br>
-in the "bot" section, copy the bot's token and paste it in `.env`. enable the `message content intent` in `privileged gateway intents`<br>
+go to discord developer portal and create a new application<br><br>
+in the "bot" section, copy the bot's token and paste it in `.env`. enable the `message content intent` in `privileged gateway intents`<br><br>
 in the "OAuth2 - URL generator" section, set scope to `bot`, and select the `send messages`, `manage messages`, and `read message history` permissions. invite the bot to your server with the link 
 ### run the bot
-macos and linux:
+create and activate a venv
 ```
+# macos and linux
+python3 -m venv .venv
+source .venv/bin/activate
+
+# windows
+py -m venv .venv
+.venv\Scripts\activate.bat
+```
+install requirements
+```
+pip install -r requirements.txt
+```
+run the bot
+```
+# macos and linux
+python3 main.py
+
+# windows
+py main.py
+```
+<br>
+if u are too lazy to type all of the above, simply start the bot by running a script:
+
+```
+# macos and linux
 sh run.sh
-```
-windows:
-```
+
+# windows
 run.cmd
 ```
+
 ## hosting
 todo
