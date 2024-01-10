@@ -27,7 +27,7 @@ python 3.8 or higher is required<br>
 - go to discord developer portal and create a new application 
 - in the "bot" section, copy the bot's token and paste it in `.env`. enable the `message content intent` in `privileged gateway intents`
 - in the "OAuth2 - URL generator" section, set scope to `bot`, and select the `send messages`, `manage messages`, and `read message history` permissions. invite the bot to your server with the link 
-- run the bot
+- run the bot<br>
     macos and linux:
     ```
     sh run.sh
