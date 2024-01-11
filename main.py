@@ -3,7 +3,6 @@ import discord
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 import re
-import random
 from dotenv import load_dotenv
 import aiosqlite
 
@@ -25,6 +24,10 @@ HELP_TEXT = """
 HOW TO KMS
                                        
 purge old messages:
+purge old messages:
+`!kms {duration in seconds, minutes, hours, or days}`
+for example,             
+purge old messages:          
 `!kms {duration in seconds, minutes, hours, or days}`
 for example,             
 `!kms 30s`
@@ -52,17 +55,31 @@ async def purge_channel(channel, dtime, self_msg_id):
     except Exception as e:
         print(e) 
         # todo handle missing perms
+        # raise
 
 async def set_purge_task_loop(channel, dtime):
     stop_task(channel.id) # stop prev task if there's any
+
+    if dtime < MIN_DURATION:
+        dtime = MIN_DURATION
+        formatted_duration = get_formatted_duration(MIN_DURATION)
+        await channel.send(f"minimun duration to kms is {formatted_duration}.")
+    if dtime > MAX_DURATION:
+        dtime = MAX_DURATION
+        formatted_duration = get_formatted_duration(MAX_DURATION)
+        await channel.send(f"maximum duration to kms is {formatted_duration}.") 
+
     interval = dtime.total_seconds() if dtime.total_seconds() < PURGE_INTERVAL else PURGE_INTERVAL
 
+    # start the task
     new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
     formatted_duration = get_formatted_duration(dtime)
     self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
     new_task.start(channel, dtime, self_msg.id)
 
-    active_tasks[channel.id] = new_task
+    # update dict and db
+    active_tasks[channel.id] = new_task 
+    await update_task_db(channel.id, dtime.total_seconds())
 
 async def get_all_tasks_db():
     tasks = None
@@ -132,7 +149,10 @@ def run_bot():
     intents.messages = True
     intents.message_content = True
 
-    bot = commands.Bot(intents = intents, command_prefix = COMMAND_PREFIX, proxy = PROXY)  
+    bot = commands.Bot(intents = intents, 
+                       command_prefix = COMMAND_PREFIX, 
+                       case_insensitive = True,
+                       proxy = PROXY)  
 
     @bot.event
     async def on_ready():
@@ -163,7 +183,7 @@ def run_bot():
         try:
             # only support text channels for now
             if ctx.channel.type != discord.ChannelType.text:
-                await ctx.channel.send("kms only supports text channels for now.")
+                await ctx.channel.send("Σ(°Д°) kms only supports text channels for now.")
                 return
             usr_input = usr_input.lower()
             if "help" in usr_input:
@@ -197,20 +217,8 @@ def run_bot():
                     else: 
                         dtime = timedelta(hours = int(num.group(0)))
 
-                    if dtime < MIN_DURATION:
-                        dtime = MIN_DURATION
-                        formatted_duration = get_formatted_duration(MIN_DURATION)
-                        await ctx.channel.send(f"minimun duration to kms is {formatted_duration}.")
-                    if dtime > MAX_DURATION:
-                        dtime = MAX_DURATION
-                        formatted_duration = get_formatted_duration(MAX_DURATION)
-                        await ctx.channel.send(f"maximum duration to kms is {formatted_duration}.") 
-
                     # start / restart task in a channel
                     await set_purge_task_loop(ctx.channel, dtime)
-                    # update db
-                    await update_task_db(ctx.channel.id, dtime.total_seconds())
-
                     print(f"{datetime.utcnow()} updated purge task in guild {ctx.guild}")
 
         except Exception as e:
