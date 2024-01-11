@@ -23,13 +23,7 @@ MIN_DURATION = timedelta(seconds = 1)
 HELP_TEXT = """
 HOW TO KMS
                                        
-purge old messages:
-purge old messages:
-`!kms {duration in seconds, minutes, hours, or days}`
-for example,             
-purge old messages:          
-`!kms {duration in seconds, minutes, hours, or days}`
-for example,             
+purge old messages:           
 `!kms 30s`
 `!kms 5m`
 `!kms 24h`
