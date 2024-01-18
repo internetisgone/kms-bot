@@ -7,17 +7,17 @@ periodically deletes old messages in a discord text channel using [purge](https:
 rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which inspired this project
 
 ## usage
-#### start or reset purge task in a channel
+### start or reset purge task in a channel
 `!kms 2d`<br>
 `!kms 24h`<br>
 `!kms 5m`<br>
 `!kms 30s`<br>
-#### stop purge task in a channel
+### stop purge task in a channel
 `!kms stop`
-#### get available commands
+### get available commands
 `!kms help`
-#### reload cogs (owner only)
-hot reload a cog after making changes
+### reload cogs (owner only)
+hot reload a cog after making changes<br>
 `!reload cogs.purge`
 
 ## setup and run
