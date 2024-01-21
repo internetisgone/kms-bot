@@ -16,9 +16,6 @@ rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which ins
 `!kms stop`
 ### get available commands
 `!kms help`
-### reload cogs (owner only)
-hot reload a cog after making changes<br>
-`!reload cogs.purge`
 
 ## setup and run
 python 3.8 or higher is required<br>
