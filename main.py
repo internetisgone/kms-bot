@@ -166,17 +166,20 @@ def run_bot():
 
         # start tasks
         for task in tasks:
-            channel_id, dtime = task
-            channel = bot.get_channel(channel_id)
-            dtime = timedelta(seconds = dtime)
-            if (not channel or channel.type != discord.ChannelType.text):
-                # delete invalid data 
-                print(f"channel {channel_id} is not a text channel or kms has no access to it")             
-                await delete_task_db(channel_id)
-            else: 
-                print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
-                await set_purge_task_loop(channel, dtime)
-
+            try:
+                channel_id, dtime = task
+                channel = bot.get_channel(channel_id)
+                dtime = timedelta(seconds = dtime)
+                if (not channel or channel.type != discord.ChannelType.text):
+                    # delete invalid data 
+                    print(f"channel {channel_id} is not a text channel or kms has no access to it")             
+                    await delete_task_db(channel_id)
+                else: 
+                    print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
+                    await set_purge_task_loop(channel, dtime)
+            except Exception as e:
+                print(f"error starting task in channel {channel_id}: {e}")
+                
         # set status
         game = discord.Game("!kms help")
         await bot.change_presence(status = discord.Status.online, activity = game)
