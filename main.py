@@ -28,6 +28,7 @@ purge old messages:
 `!kms 5m`
 `!kms 24h`
 `!kms 2d`
+or any custom duration
 
 stop purge task: 
 `!kms stop`
@@ -46,10 +47,18 @@ async def purge_channel(channel, dtime, self_msg_id):
             before = datetime.now() - dtime,
             oldest_first = True
         )  
+    except discord.errors.Forbidden as e:
+        print(f"403 error purging channel {channel.id}: {e}") 
+        if e.text == "Missing Access":
+            stop_task(channel.id)
+            await delete_task_db(channel.id)
+            print(f"deleted task in channel {channel.id}")
+        elif e.text == "Missing Permissions":
+            stop_task(channel.id)
+            await delete_task_db(channel.id)
+            await channel.send("Σ(°Д°) kms stopped: missing permissions.")
     except Exception as e:
-        print(e) 
-        # todo handle missing perms
-        # raise
+        print(f"error purging channel {channel.id}: {e}") 
 
 async def set_purge_task_loop(channel, dtime):
     stop_task(channel.id) # stop prev task if there's any
