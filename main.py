@@ -1,6 +1,7 @@
 import os
 import discord
-from discord.ext import commands, tasks
+from discord import app_commands
+from discord.ext import tasks
 from datetime import datetime, timedelta
 import re
 from dotenv import load_dotenv
@@ -16,7 +17,6 @@ load_dotenv()
 PROXY = None
 DISCORD_KEY = os.getenv("DISCORD_KEY")
 
-COMMAND_PREFIX = "!"
 PURGE_INTERVAL = 33 # in seconds
 MAX_DURATION = timedelta(days = 3333)
 MIN_DURATION = timedelta(seconds = 1)
@@ -24,17 +24,17 @@ HELP_TEXT = """
 HOW TO KMS
                                        
 purge old messages:           
-`!kms 30s`
-`!kms 5m`
-`!kms 24h`
-`!kms 2d`
+`/kms 30s`
+`/kms 5m`
+`/kms 24h`
+`/kms 2d`
 or any custom duration
 
 stop purge task: 
-`!kms stop`
+`/stop`
                                        
 get help:
-`!kms help`
+`/help`
 """
 
 active_tasks = {} # key: channel id, value: task
@@ -60,7 +60,7 @@ async def purge_channel(channel, dtime, self_msg_id):
     except Exception as e:
         print(f"error purging channel {channel.id}: {e}") 
 
-async def set_purge_task_loop(channel, dtime):
+async def set_purge_task_loop(channel, dtime, interaction):
     stop_task(channel.id) # stop prev task if there's any
 
     if dtime < MIN_DURATION:
@@ -77,7 +77,12 @@ async def set_purge_task_loop(channel, dtime):
     # start the task
     new_task = tasks.loop(seconds = interval, reconnect = True)(purge_channel)
     formatted_duration = get_formatted_duration(dtime)
-    self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
+    self_msg = None
+    if interaction:
+        await interaction.response.send_message(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
+        self_msg = await interaction.original_response()
+    else:
+        self_msg = await channel.send(f"messages older than {formatted_duration} will be deleted on a rolling basis in this channel.")
     new_task.start(channel, dtime, self_msg.id)
 
     # update dict and db
@@ -87,7 +92,7 @@ async def set_purge_task_loop(channel, dtime):
 async def get_all_tasks_db():
     tasks = None
     try: 
-        db = await aiosqlite.connect("kms.db") # creates kms.db if it doesn't exist
+        db = await aiosqlite.connect("kms.db") # create kms.db if it doesn't exist
         cursor = await db.cursor()
         await cursor.execute("CREATE TABLE IF NOT EXISTS kms_tasks(channel_id INTEGER PRIMARY KEY, purge_duration_seconds INTEGER)") # channel id is unique across servers 
         await db.commit()
@@ -148,17 +153,20 @@ def get_formatted_duration(dtime):
         return str(seconds) + " seconds" if seconds > 1 else str(seconds) + " second"
 
 def run_bot():
-    intents = discord.Intents.default()
-    intents.messages = True
-    intents.message_content = True
-
-    bot = commands.Bot(intents = intents, 
-                       command_prefix = COMMAND_PREFIX, 
-                       case_insensitive = True,
-                       proxy = PROXY)  
+    bot = discord.Client(
+        intents = discord.Intents.default(), 
+        proxy = PROXY
+    ) 
+    tree = app_commands.CommandTree(bot)
 
     @bot.event
     async def on_ready():
+        try:
+            synced = await tree.sync()
+            print(f"synced {len(synced)} commands")
+        except Exception as e:
+            print(f"failed to sync command tree: {str(e)}")
+        
         print(f"{datetime.utcnow()} {bot.user} is online")
 
         # check the db for existing tasks 
@@ -176,60 +184,75 @@ def run_bot():
                     await delete_task_db(channel_id)
                 else: 
                     print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
-                    await set_purge_task_loop(channel, dtime)
+                    await set_purge_task_loop(channel, dtime, None)
+                # todo 
+                # sleep
             except Exception as e:
                 print(f"error starting task in channel {channel_id}: {e}")
+                # delete data
                 
         # set status
-        game = discord.Game("!kms help")
+        game = discord.Game("/kms")
         await bot.change_presence(status = discord.Status.online, activity = game)
-            
-    @bot.command(name = "kms") 
-    async def kms(ctx, usr_input):
-        try:
-            # only support text channels for now
-            if ctx.channel.type != discord.ChannelType.text:
-                await ctx.channel.send("Σ(°Д°) kms only supports text channels for now.")
-                return
-            usr_input = usr_input.lower()
-            if "help" in usr_input:
-                # send help text
-                await ctx.channel.send(HELP_TEXT)
-            elif "stop" in usr_input:
-                # try stop task
-                if ctx.channel.id in active_tasks:
-                    stop_task(ctx.channel.id)                 
-                    await delete_task_db(ctx.channel.id) # remove from db
-                    del active_tasks[ctx.channel.id] # remove from dict
-                    await ctx.channel.send("kms stopped.")
-                else: 
-                    await ctx.channel.send("nothing to stop in this channel.")
-            else: 
-                # try parse duration 
-                duration = re.search('\d+[smhd]', usr_input)
-                dtime = None
-                if not duration:
-                    # invalid input
-                    await ctx.channel.send(f"Σ(°Д°) invalid input. type `!kms help` to see available commands.")
-                else: 
-                    duration = duration.group(0)
-                    num = re.search('\d+', duration)
-                    if "s" in duration:
-                        dtime = timedelta(seconds = int(num.group(0)))
-                    elif "m" in duration:
-                        dtime = timedelta(minutes = int(num.group(0)))
-                    elif "d" in duration:
-                        dtime = timedelta(days = int(num.group(0)))
-                    else: 
-                        dtime = timedelta(hours = int(num.group(0)))
 
-                    # start / restart task in a channel
-                    await set_purge_task_loop(ctx.channel, dtime)
-                    print(f"{datetime.utcnow()} updated purge task in guild {ctx.guild}")
+    # slash command to set duration
+    @tree.command(name = "kms") 
+    async def on_kms(
+        interaction: discord.Interaction,
+        duration: str,
+    ):
+        if interaction.channel.type != discord.ChannelType.text:
+            await interaction.response.send_message("Σ(°Д°) kms only supports text channels for now.")
+            return
+        
+        try:
+            # parse duration 
+            duration = duration.lower()
+            duration = re.search('\d+[smhd]', duration)
+            dtime = None
+            if not duration:
+                # invalid input
+                await interaction.response.send_message(f"Σ(°Д°) invalid duration. type `/help` to see supported formats.")
+            else: 
+                duration = duration.group(0)
+                num = re.search('\d+', duration)
+                if "s" in duration:
+                    dtime = timedelta(seconds = int(num.group(0)))
+                elif "m" in duration:
+                    dtime = timedelta(minutes = int(num.group(0)))
+                elif "d" in duration:
+                    dtime = timedelta(days = int(num.group(0)))
+                else: 
+                    dtime = timedelta(hours = int(num.group(0)))
+
+                # start / restart task in a channel
+                await set_purge_task_loop(interaction.channel, dtime, interaction)
+                print(f"{datetime.utcnow()} updated purge task in guild {interaction.guild}")
 
         except Exception as e:
             print(e)
-            await ctx.channel.send(f"failed to kms: {e}")
+            await interaction.channel.send(f"failed to kms: {e}")
+
+    # slash command to stop purge task
+    @tree.command(name = "stop") 
+    async def on_stop(
+        interaction: discord.Interaction,
+    ):
+        if interaction.channel.id in active_tasks:
+            stop_task(interaction.channel.id)                 
+            await delete_task_db(interaction.channel.id) # remove from db
+            del active_tasks[interaction.channel.id] # remove from dict
+            await interaction.response.send_message("kms stopped.")
+        else: 
+            await interaction.response.send_message("nothing to stop in this channel.")
+
+
+    # slash command for help
+    @tree.command(name = "help") 
+    async def on_help(
+        interaction: discord.Interaction,
+    ):
+        await interaction.response.send_message(HELP_TEXT)
 
     bot.run(DISCORD_KEY)
 
