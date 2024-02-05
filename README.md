@@ -1,6 +1,6 @@
 # KMS bot
-periodically deletes old messages in a discord text channel using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
-- works across channels and servers
+discord bot that periodically deletes old messages in text channels using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
+- custom duration for each channel 
 - pinned messages are kept
 - purge tasks are kept in a local SQLite database and resumed on bot restart<br>
 
