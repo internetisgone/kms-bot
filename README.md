@@ -8,14 +8,14 @@ rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which ins
 
 ## usage
 ### start or reset purge task in a channel
-`!kms 2d`<br>
-`!kms 24h`<br>
-`!kms 5m`<br>
-`!kms 30s`<br>
+`/kms 2d`<br>
+`/kms 24h`<br>
+`/kms 5m`<br>
+`/kms 30s`<br>
 ### stop purge task in a channel
-`!kms stop`
+`/stop`
 ### get available commands
-`!kms help`
+`/help`
 
 ## setup and run
 python 3.8 or higher is required<br>
@@ -26,8 +26,8 @@ cd kms-bot
 ```
 ### create a bot user
 go to discord developer portal and create a new application<br><br>
-in the "bot" section, copy the bot's token and paste it in `.env`. enable the `message content intent` in `privileged gateway intents`<br><br>
-in the "OAuth2 - URL generator" section, set scope to `bot`, and select the `send messages`, `manage messages`, and `read message history` permissions. invite the bot to your server with the link 
+in the "bot" section, copy the bot's token and paste it in `.env`<br><br>
+in the "OAuth2 - URL generator" section, set scope to `bot` and `applications.commands`, and select the `send messages`, `manage messages`, and `read message history` permissions. invite the bot to your server with the link 
 ### run the bot
 create and activate a venv
 ```
