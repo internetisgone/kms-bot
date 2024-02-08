@@ -72,7 +72,7 @@ async def set_purge_task_loop(channel, dtime):
 async def get_all_tasks_db():
     tasks = None
     try: 
-        db = await aiosqlite.connect("kms.db") # creates kms.db if it doesn't exist
+        db = await aiosqlite.connect("kms.db") # create kms.db if it doesn't exist
         cursor = await db.cursor()
         await cursor.execute("CREATE TABLE IF NOT EXISTS kms_tasks(channel_id INTEGER PRIMARY KEY, purge_duration_seconds INTEGER)") # channel id is unique across servers 
         await db.commit()
@@ -134,8 +134,8 @@ def get_formatted_duration(dtime):
 
 def run_bot():
     intents = discord.Intents.default()
-    intents.guild_messages = True
-    intents.messages = True
+    # intents.guild_messages = True
+    # intents.messages = True
     bot = discord.Client(intents = intents, 
                        proxy = PROXY)  
     @bot.event
@@ -169,7 +169,7 @@ def run_bot():
     @bot.event
     async def on_message(msg):
         # only respond to @ mentions
-        if not bot.user.mentioned_in(msg):
+        if msg.author == bot.user or not bot.user.mentioned_in(msg):
             return
         # only support text channels for now
         if msg.channel.type != discord.ChannelType.text:
@@ -183,17 +183,17 @@ def run_bot():
 HOW TO KMS
                         
 purge old messages:           
-`@{bot.user.name} 30s`
-`@{bot.user.name} 5m`
-`@{bot.user.name} 24h`
-`@{bot.user.name} 2d`
+<@{bot.user.id}> 30s
+<@{bot.user.id}> 5m
+<@{bot.user.id}> 24h
+<@{bot.user.id}> 2d
 or any custom duration
 
 stop purge task: 
-`@{bot.user.name} stop`
+<@{bot.user.id}> stop
                         
 get help:
-`@{bot.user.name} help`
+<@{bot.user.id}> help
                 """)
             elif "stop" in msg_content:
                 # try stop task
@@ -210,7 +210,7 @@ get help:
                 dtime = None
                 if not duration:
                     # invalid input
-                    await msg.channel.send(f"Σ(°Д°) invalid input. type `@{bot.user.name} help` to see available commands.")
+                    await msg.channel.send(f'Σ(°Д°) invalid input. type "<@{bot.user.id}> help" to see available commands.')
                 else: 
                     duration = duration.group(0)
                     num = re.search('\d+', duration)
