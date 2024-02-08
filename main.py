@@ -1,6 +1,6 @@
 import os
 import discord
-from discord.ext import commands, tasks
+from discord.ext import tasks
 from datetime import datetime, timedelta
 import re
 from dotenv import load_dotenv
@@ -16,37 +16,22 @@ load_dotenv()
 PROXY = None
 DISCORD_KEY = os.getenv("DISCORD_KEY")
 
-COMMAND_PREFIX = "!"
 PURGE_INTERVAL = 33 # in seconds
 MAX_DURATION = timedelta(days = 3333)
-MIN_DURATION = timedelta(seconds = 1)
-HELP_TEXT = """
-HOW TO KMS
-                                       
-purge old messages:           
-`!kms 30s`
-`!kms 5m`
-`!kms 24h`
-`!kms 2d`
-or any custom duration
-
-stop purge task: 
-`!kms stop`
-                                       
-get help:
-`!kms help`
-"""
+MIN_DURATION = timedelta(seconds = 3)
 
 active_tasks = {} # key: channel id, value: task
 
 async def purge_channel(channel, dtime, self_msg_id):
     try:
-        await channel.purge(
+        # print(f"{datetime.utcnow()} purging channel {channel}")
+        purged = await channel.purge(
             limit = 100,
             check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
             before = datetime.now() - dtime,
             oldest_first = True
-        )  
+        )
+        # print(f"{datetime.utcnow()} purged {len(purged)} messages in channel {channel}")
     except discord.errors.Forbidden as e:
         print(f"403 error purging channel {channel.id}: {e}") 
         if e.text == "Missing Access":
@@ -58,7 +43,7 @@ async def purge_channel(channel, dtime, self_msg_id):
             await delete_task_db(channel.id)
             await channel.send("Σ(°Д°) kms stopped: missing permissions.")
     except Exception as e:
-        print(f"error purging channel {channel.id}: {e}") 
+        print(f"error purging channel {channel.id}: {e}")
 
 async def set_purge_task_loop(channel, dtime):
     stop_task(channel.id) # stop prev task if there's any
@@ -149,14 +134,10 @@ def get_formatted_duration(dtime):
 
 def run_bot():
     intents = discord.Intents.default()
+    intents.guild_messages = True
     intents.messages = True
-    intents.message_content = True
-
-    bot = commands.Bot(intents = intents, 
-                       command_prefix = COMMAND_PREFIX, 
-                       case_insensitive = True,
+    bot = discord.Client(intents = intents, 
                        proxy = PROXY)  
-
     @bot.event
     async def on_ready():
         print(f"{datetime.utcnow()} {bot.user} is online")
@@ -179,38 +160,57 @@ def run_bot():
                     await set_purge_task_loop(channel, dtime)
             except Exception as e:
                 print(f"error starting task in channel {channel_id}: {e}")
+                await delete_task_db(channel_id)
                 
         # set status
-        game = discord.Game("!kms help")
+        game = discord.Game(f"@{bot.user.name} help")
         await bot.change_presence(status = discord.Status.online, activity = game)
-            
-    @bot.command(name = "kms") 
-    async def kms(ctx, usr_input):
+
+    @bot.event
+    async def on_message(msg):
+        # only respond to @ mentions
+        if not bot.user.mentioned_in(msg):
+            return
+        # only support text channels for now
+        if msg.channel.type != discord.ChannelType.text:
+            await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels for now.")
+            return
         try:
-            # only support text channels for now
-            if ctx.channel.type != discord.ChannelType.text:
-                await ctx.channel.send("Σ(°Д°) kms only supports text channels for now.")
-                return
-            usr_input = usr_input.lower()
-            if "help" in usr_input:
+            msg_content = msg.content.lower()
+            if "help" in msg_content:
                 # send help text
-                await ctx.channel.send(HELP_TEXT)
-            elif "stop" in usr_input:
+                await msg.channel.send(f"""
+HOW TO KMS
+                        
+purge old messages:           
+`@{bot.user.name} 30s`
+`@{bot.user.name} 5m`
+`@{bot.user.name} 24h`
+`@{bot.user.name} 2d`
+or any custom duration
+
+stop purge task: 
+`@{bot.user.name} stop`
+                        
+get help:
+`@{bot.user.name} help`
+                """)
+            elif "stop" in msg_content:
                 # try stop task
-                if ctx.channel.id in active_tasks:
-                    stop_task(ctx.channel.id)                 
-                    await delete_task_db(ctx.channel.id) # remove from db
-                    del active_tasks[ctx.channel.id] # remove from dict
-                    await ctx.channel.send("kms stopped.")
+                if msg.channel.id in active_tasks:
+                    stop_task(msg.channel.id)                 
+                    await delete_task_db(msg.channel.id) # remove from db
+                    del active_tasks[msg.channel.id] # remove from dict
+                    await msg.channel.send(f"{bot.user.name} stopped.")
                 else: 
-                    await ctx.channel.send("nothing to stop in this channel.")
+                    await msg.channel.send("nothing to stop in this channel.")
             else: 
                 # try parse duration 
-                duration = re.search('\d+[smhd]', usr_input)
+                duration = re.search('\d+[smhd]', msg_content)
                 dtime = None
                 if not duration:
                     # invalid input
-                    await ctx.channel.send(f"Σ(°Д°) invalid input. type `!kms help` to see available commands.")
+                    await msg.channel.send(f"Σ(°Д°) invalid input. type `@{bot.user.name} help` to see available commands.")
                 else: 
                     duration = duration.group(0)
                     num = re.search('\d+', duration)
@@ -224,12 +224,12 @@ def run_bot():
                         dtime = timedelta(hours = int(num.group(0)))
 
                     # start / restart task in a channel
-                    await set_purge_task_loop(ctx.channel, dtime)
-                    print(f"{datetime.utcnow()} updated purge task in guild {ctx.guild}")
+                    await set_purge_task_loop(msg.channel, dtime)
+                    print(f"{datetime.utcnow()} updated purge task in guild {msg.guild}")
 
         except Exception as e:
             print(e)
-            await ctx.channel.send(f"failed to kms: {e}")
+            await msg.channel.send(f"failed to kms: {e}")
 
     bot.run(DISCORD_KEY)
 
