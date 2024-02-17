@@ -53,4 +53,9 @@ py main.py
 ```
 
 ## hosting
-todo
+hosting platforms with free tier 
+- [fly.io](https://fly.io/). it will build the bot from the `Dockerfile`. u need to configure a volume for the sqlite db to work
+- [pythonanywhere](https://www.pythonanywhere.com/). afaik it has persistent storage but the machine gets restarted quite often
+<br>
+vps self-hosting<br>
+im using `screen` rn but the proper way to do it would be adding it as a service in `systemd`

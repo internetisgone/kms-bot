@@ -19,7 +19,7 @@ DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 PURGE_INTERVAL = 33 # in seconds
 MAX_DURATION = timedelta(days = 3333)
-MIN_DURATION = timedelta(seconds = 1)
+MIN_DURATION = timedelta(seconds = 3)
 HELP_TEXT = """
 HOW TO KMS
                                        
@@ -41,12 +41,14 @@ active_tasks = {} # key: channel id, value: task
 
 async def purge_channel(channel, dtime, self_msg_id):
     try:
-        await channel.purge(
+        # print(f"{datetime.utcnow()} purging channel {channel}")
+        purged = await channel.purge(
             limit = 100,
             check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
             before = datetime.now() - dtime,
             oldest_first = True
-        )  
+        )
+        # print(f"{datetime.utcnow()} purged {len(purged)} messages in channel {channel}")
     except discord.errors.Forbidden as e:
         print(f"403 error purging channel {channel.id}: {e}") 
         if e.text == "Missing Access":
@@ -58,7 +60,7 @@ async def purge_channel(channel, dtime, self_msg_id):
             await delete_task_db(channel.id)
             await channel.send("Σ(°Д°) kms stopped: missing permissions.")
     except Exception as e:
-        print(f"error purging channel {channel.id}: {e}") 
+        print(f"error purging channel {channel.id}: {e}")
 
 async def set_purge_task_loop(channel, dtime, interaction):
     stop_task(channel.id) # stop prev task if there's any
@@ -189,7 +191,7 @@ def run_bot():
                 # sleep
             except Exception as e:
                 print(f"error starting task in channel {channel_id}: {e}")
-                # delete data
+                await delete_task_db(channel_id)
                 
         # set status
         game = discord.Game("/kms")
