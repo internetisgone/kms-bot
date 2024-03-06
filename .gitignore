@@ -2,3 +2,4 @@
 kms.db
 .DS_Store
 .venv/
+fly.toml
