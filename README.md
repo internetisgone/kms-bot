@@ -2,6 +2,7 @@
 discord bot that periodically deletes old messages in text channels using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
 - custom duration for each channel 
 - pinned messages are kept
+- minimal permissions (no message content access)
 - purge tasks are kept in a local SQLite database and resumed on bot restart<br>
 
 rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which inspired this project
@@ -53,10 +54,11 @@ python3 main.py
 py main.py
 ```
 
-## hosting
-hosting platforms with free tier 
+## hosting recommendations
+
+### hosting platforms with free tier 
 - [fly.io](https://fly.io/). it will build the bot from the `Dockerfile`. u need to configure a volume for the sqlite db to work
 - [pythonanywhere](https://www.pythonanywhere.com/). afaik it has persistent storage but the machine gets restarted quite often
-<br>
-vps self-hosting<br>
+
+### vps self-hosting
 im using `screen` rn but the proper way to do it would be adding it as a service in `systemd`
