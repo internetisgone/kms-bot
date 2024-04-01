@@ -18,7 +18,7 @@ DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 PURGE_INTERVAL = 33 # in seconds
 MAX_DURATION = timedelta(days = 3333)
-MIN_DURATION = timedelta(seconds = 3)
+MIN_DURATION = timedelta(seconds = 1)
 
 active_tasks = {} # key: channel id, value: task
 
@@ -35,15 +35,20 @@ async def purge_channel(channel, dtime, self_msg_id):
     except discord.errors.Forbidden as e:
         print(f"403 error purging channel {channel.id}: {e}") 
         if e.text == "Missing Access":
-            stop_task(channel.id)
-            await delete_task_db(channel.id)
+            await stop_and_delete_task(channel.id)
             print(f"deleted task in channel {channel.id}")
         elif e.text == "Missing Permissions":
-            stop_task(channel.id)
-            await delete_task_db(channel.id)
+            await stop_and_delete_task(channel.id)
             await channel.send("Σ(°Д°) kms stopped: missing permissions.")
     except Exception as e:
         print(f"error purging channel {channel.id}: {e}")
+        if e.text == "Unknown Channel":
+            await stop_and_delete_task(channel.id)
+            print(f"deleted task in channel {channel.id}")
+
+async def stop_and_delete_task(channel_id):
+    stop_task(channel_id)
+    await delete_task_db(channel_id)
 
 async def set_purge_task_loop(channel, dtime):
     stop_task(channel.id) # stop prev task if there's any
@@ -140,7 +145,7 @@ def run_bot():
                        proxy = PROXY)  
     @bot.event
     async def on_ready():
-        print(f"{datetime.utcnow()} {bot.user} is online")
+        print(f"{datetime.now()} {bot.user} is online")
 
         # check the db for existing tasks 
         tasks = await get_all_tasks_db()
@@ -198,8 +203,7 @@ get help:
             elif "stop" in msg_content:
                 # try stop task
                 if msg.channel.id in active_tasks:
-                    stop_task(msg.channel.id)                 
-                    await delete_task_db(msg.channel.id) # remove from db
+                    await stop_and_delete_task(msg.channel.id)
                     del active_tasks[msg.channel.id] # remove from dict
                     await msg.channel.send(f"{bot.user.name} stopped.")
                 else: 
@@ -225,7 +229,7 @@ get help:
 
                     # start / restart task in a channel
                     await set_purge_task_loop(msg.channel, dtime)
-                    print(f"{datetime.utcnow()} updated purge task in guild {msg.guild}")
+                    # print(f"{datetime.utcnow()} updated purge task in guild {msg.guild}")
 
         except Exception as e:
             print(e)

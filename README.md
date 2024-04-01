@@ -27,7 +27,7 @@ cd kms-bot
 ```
 ### create a bot user
 go to discord developer portal and create a new application<br><br>
-in the "bot" section, copy its token and paste it in `.env`. optionally, uncheck "public bot"<br><br>
+in the "bot" section, copy its token and paste it in `.env.example`, and rename the file to `.env`. optionally, uncheck "public bot"<br><br>
 in the "OAuth2 - URL generator" section, set scope to `bot`, and select the `send messages`, `manage messages`, and `read message history` permissions. invite the bot to your server with the link 
 ### run the bot
 create and activate a venv
