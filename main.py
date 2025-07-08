@@ -40,11 +40,12 @@ async def purge_channel(channel, dtime, self_msg_id):
         elif e.text == "Missing Permissions":
             await stop_and_delete_task(channel.id)
             await channel.send("Σ(°Д°) kms stopped: missing permissions.")
+    except discord.errors.NotFound as e:
+        print(f"channel {channel.id} not found: {e}")
+        await stop_and_delete_task(channel.id)
+        print(f"deleted task in channel {channel.id}")
     except Exception as e:
         print(f"error purging channel {channel.id}: {e}")
-        if e.text == "Unknown Channel":
-            await stop_and_delete_task(channel.id)
-            print(f"deleted task in channel {channel.id}")
 
 async def stop_and_delete_task(channel_id):
     stop_task(channel_id)
