@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import re
 from dotenv import load_dotenv
 import aiosqlite
+import logging 
 
 load_dotenv()
 
@@ -18,34 +19,35 @@ DISCORD_KEY = os.getenv("DISCORD_KEY")
 
 PURGE_INTERVAL = 33 # in seconds
 MAX_DURATION = timedelta(days = 3333)
-MIN_DURATION = timedelta(seconds = 1)
+MIN_DURATION = timedelta(seconds = 3)
 
 active_tasks = {} # key: channel id, value: task
+logging.basicConfig(level = logging.INFO, format = "%(asctime)s %(levelname)s %(process)d %(message)s")
 
 async def purge_channel(channel, dtime, self_msg_id):
     try:
-        # print(f"{datetime.utcnow()} purging channel {channel}")
+        # logging.info(f"purging channel {channel.id}")
         purged = await channel.purge(
             limit = 100,
             check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
             before = datetime.now() - dtime,
             oldest_first = True
         )
-        # print(f"{datetime.utcnow()} purged {len(purged)} messages in channel {channel}")
+        # logging.info(f"purged {len(purged)} messages in channel {channel}")
     except discord.errors.Forbidden as e:
-        print(f"403 error purging channel {channel.id}: {e}") 
+        logging.warning(f"403 error purging channel {channel.id}: {e}") 
         if e.text == "Missing Access":
             await stop_and_delete_task(channel.id)
-            print(f"deleted task in channel {channel.id}")
+            logging.info(f"deleted task in channel {channel.id}")
         elif e.text == "Missing Permissions":
             await stop_and_delete_task(channel.id)
             await channel.send("Σ(°Д°) kms stopped: missing permissions.")
     except discord.errors.NotFound as e:
-        print(f"channel {channel.id} not found: {e}")
+        logging.warning(f"channel {channel.id} not found: {e}")
         await stop_and_delete_task(channel.id)
-        print(f"deleted task in channel {channel.id}")
+        logging.info(f"deleted task in channel {channel.id}")
     except Exception as e:
-        print(f"error purging channel {channel.id}: {e}")
+        logging.error(f"error purging channel {channel.id}: {e}")
 
 async def stop_and_delete_task(channel_id):
     stop_task(channel_id)
@@ -87,7 +89,7 @@ async def get_all_tasks_db():
         tasks = await cursor.fetchall()
         await db.close()
     except Exception as e:
-        print(e)
+        logging.error(e)
     finally:
         return tasks
 
@@ -107,7 +109,7 @@ async def update_task_db(channel_id, dtime_seconds):
         await db.close()
 
     except Exception as e:
-        print(e)
+        logging.error(e)
 
 async def delete_task_db(channel_id):
     try:
@@ -117,11 +119,22 @@ async def delete_task_db(channel_id):
         await db.commit()
         await db.close()
     except Exception as e:
-        print(e)
+        logging.error(e)
+
+async def get_task_db(channel_id):
+    try:
+        db = await aiosqlite.connect("kms.db")
+        cursor = await db.cursor()
+        await cursor.execute(f"SELECT purge_duration_seconds FROM kms_tasks WHERE channel_id = {channel_id}") 
+        result = await cursor.fetchone()
+        await db.close()
+        return result
+    except Exception as e:
+        logging.error(e)
+        return None
 
 def stop_task(channel_id):
     if channel_id in active_tasks:
-        # print(f"stopping task {active_tasks[channel_id]} in channel {channel_id}")
         active_tasks[channel_id].stop()
 
 def get_formatted_duration(dtime):
@@ -144,7 +157,7 @@ def run_bot():
                        proxy = PROXY)  
     @bot.event
     async def on_ready():
-        print(f"{datetime.now()} {bot.user} is online")
+        logging.info(f"{bot.user} is online")
 
         # check the db for existing tasks 
         tasks = await get_all_tasks_db()
@@ -157,13 +170,13 @@ def run_bot():
                 dtime = timedelta(seconds = dtime)
                 if (not channel or channel.type != discord.ChannelType.text):
                     # delete invalid data 
-                    print(f"channel {channel_id} is not a text channel or kms has no access to it")             
+                    logging.warning(f"channel {channel_id} is not a text channel or kms has no access to it")             
                     await delete_task_db(channel_id)
                 else: 
-                    print(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
+                    logging.info(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
                     await set_purge_task_loop(channel, dtime)
             except Exception as e:
-                print(f"error starting task in channel {channel_id}: {e}")
+                logging.error(f"error starting task in channel {channel_id}: {e}")
                 await delete_task_db(channel_id)
                 
         # set status
@@ -184,7 +197,7 @@ def run_bot():
             if "help" in msg_content:
                 # send help text
                 await msg.channel.send(f"""
-HOW TO KMS
+˚⋆✦·✫. HOW TO KMS .✫·✦⋆˚                  
                         
 purge old messages:           
 <@{bot.user.id}> 30s
@@ -195,10 +208,15 @@ or any custom duration
 
 stop purge task: 
 <@{bot.user.id}> stop
-                        
+
+get channel status: 
+<@{bot.user.id}> status
+
 get help:
 <@{bot.user.id}> help
-                """)
+
+kms duration in this channel is 
+""")
             elif "stop" in msg_content:
                 # try stop task
                 if msg.channel.id in active_tasks:
@@ -207,16 +225,24 @@ get help:
                     await msg.channel.send(f"{bot.user.name} stopped.")
                 else: 
                     await msg.channel.send("nothing to stop in this channel.")
+            elif "status" in msg_content:
+                # get kms duration in this channel
+                if msg.channel.id in active_tasks:
+                    duration = await get_task_db(msg.channel.id)
+                    print(duration, type(duration))
+                    await msg.channel.send(f"kms duration in this channel is {get_formatted_duration(timedelta(seconds = duration[0]))}.")
+                else:
+                    await msg.channel.send("no active kms task in this channel.")
             else: 
                 # try parse duration 
-                duration = re.search('\d+[smhd]', msg_content)
+                duration = re.search(r'\d+[smhd]', msg_content)
                 dtime = None
                 if not duration:
                     # invalid input
                     await msg.channel.send(f'Σ(°Д°) invalid input. type "<@{bot.user.id}> help" to see available commands.')
                 else: 
                     duration = duration.group(0)
-                    num = re.search('\d+', duration)
+                    num = re.search(r'\d+', duration)
                     if "s" in duration:
                         dtime = timedelta(seconds = int(num.group(0)))
                     elif "m" in duration:
@@ -228,10 +254,10 @@ get help:
 
                     # start / restart task in a channel
                     await set_purge_task_loop(msg.channel, dtime)
-                    # print(f"{datetime.utcnow()} updated purge task in guild {msg.guild}")
+                    logging.info(f"updated purge task in guild {msg.guild}")
 
         except Exception as e:
-            print(e)
+            logging.error(e)
             await msg.channel.send(f"failed to kms: {e}")
 
     bot.run(DISCORD_KEY)
