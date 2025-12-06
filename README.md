@@ -1,9 +1,9 @@
 # KMS bot
 discord bot that periodically deletes old messages in text channels using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
-- custom duration for each channel 
-- pinned messages are kept
 - minimal permissions (no message content access)
-- purge tasks are kept in a local SQLite database and resumed on bot restart<br>
+- purge durations are kept in a local SQLite database
+- custom duration for each channel 
+- pinned messages are kept<br>
 
 rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which inspired this project
 
@@ -16,6 +16,8 @@ rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which ins
 or any custom duration 
 ### stop purge task in a channel
 `@kms_bot_user stop`
+### get channel status
+`@kms_bot_user status`
 ### get available commands
 `@kms_bot_user help`
 
@@ -61,4 +63,35 @@ py main.py
 - [pythonanywhere](https://www.pythonanywhere.com/). afaik it has persistent storage but the machine gets restarted quite often
 
 ### vps self-hosting
-im using `screen` rn but the proper way to do it would be adding it as a service in `systemd`
+add the bot as a systemd service so it starts automatically on system startup
+
+create a `kms.service` file at `/etc/systemd/system/` 
+```
+nano /etc/systemd/system/kms.service
+```
+
+the config file should look something like this
+```
+[Unit]
+Description=kms discord bot
+After=network-online.target
+
+[Service]
+Type=simple
+User=[your username here]
+Restart=on-failure
+Environment="PATH=/path/to/your/bot/.venv/bin"
+WorkingDirectory=/path/to/your/bot
+ExecStart=python3 main.py
+
+[Install]
+WantedBy=multi-user.target
+```
+start the service 
+```
+systemctl start kms
+```
+check service status 
+```
+systemctl status kms
+```
