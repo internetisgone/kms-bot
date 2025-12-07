@@ -214,8 +214,6 @@ get channel status:
 
 get help:
 <@{bot.user.id}> help
-
-kms duration in this channel is 
 """)
             elif "stop" in msg_content:
                 # try stop task
