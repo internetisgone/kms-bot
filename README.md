@@ -1,6 +1,6 @@
 # KMS bot
 discord bot that periodically deletes old messages in text channels using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
-- minimal permissions (no message content access)
+- requires the absolute minimum permissions. no message content access
 - purge durations are kept in a local SQLite database and resumed on bot restart
 - pinned messages are left untouched<br>
 
@@ -79,9 +79,9 @@ After=network-online.target
 Type=simple
 User=[your username here]
 Restart=on-failure
-Environment="PATH=/path/to/your/bot/.venv/bin"
-WorkingDirectory=/path/to/your/bot
-ExecStart=python3 main.py
+WorkingDirectory=/path/to/bot
+Environment="PYTHONPATH=$PYTHONPATH:/usr/lib/python[version]/site-packages"
+ExecStart=/path/to/bot/.venv/bin/python3 /path/to/bot/main.py
 
 [Install]
 WantedBy=multi-user.target
@@ -90,9 +90,14 @@ WantedBy=multi-user.target
 start the service 
 ```
 systemctl daemon-reload
+systemctl enable kms
 systemctl start kms
 ```
 check service status 
 ```
 systemctl status kms
+```
+view most recent log
+```
+journalctl -u kms -n 50
 ```
