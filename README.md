@@ -1,5 +1,5 @@
 # KMS bot
-discord bot that periodically deletes old messages in text channels using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
+simple discord bot that deletes old messages in text channels on a rolling basis using [purge](https://discordpy.readthedocs.io/en/stable/api.html?highlight=purge#discord.TextChannel.purge)<br>
 - requires the absolute minimum permissions. no message content access
 - purge durations are kept in a local SQLite database and resumed on bot restart
 - pinned messages are left untouched<br>
@@ -7,31 +7,31 @@ discord bot that periodically deletes old messages in text channels using [purge
 rest in peace [@AutoDelete#6949](https://github.com/riking/AutoDelete) which inspired this project
 
 ## usage
-### start or reset purge task in a channel
-`@kms_bot_user 2d`<br>
-`@kms_bot_user 24h`<br>
+#### start or reset purge
+`@kms_bot_user 10d`<br>
+`@kms_bot_user 12h`<br>
 `@kms_bot_user 5m`<br>
 `@kms_bot_user 30s`<br>
 or any custom duration 
-### stop purge task in a channel
+#### stop pruge
 `@kms_bot_user stop`
-### get channel status
+#### view channel status
 `@kms_bot_user status`
-### get available commands
+#### view all available commands
 `@kms_bot_user help`
 
 ## setup and run
 python 3.8 or higher is required<br>
-### clone this repo
+#### 1. clone this repo
 ```
 git clone https://github.com/internetisgone/kms-bot.git
 cd kms-bot
 ```
-### create a bot user
+#### 2. create a bot user
 go to discord developer portal and create a new application<br><br>
 in the "bot" section, copy its token and paste it in `.env.example`, and rename the file to `.env`. optionally, uncheck "public bot"<br><br>
 in the "OAuth2 - URL generator" section, set scope to `bot`, and select the `send messages`, `manage messages`, and `read message history` permissions. invite the bot to your server with the link 
-### run the bot
+#### 3. run the bot
 create and activate a venv
 ```
 # macos and linux
@@ -57,11 +57,11 @@ py main.py
 
 ## hosting recommendations
 
-### hosting platforms with free tier 
+#### hosting platforms with free tier 
 - [fly.io](https://fly.io/). it will build the bot from the `Dockerfile`. u need to configure a volume for the sqlite db to work
 - [pythonanywhere](https://www.pythonanywhere.com/). afaik it has persistent storage but the machine gets restarted quite often
 
-### vps self-hosting
+#### vps self-hosting
 (optional) add the bot as a systemd service so it starts automatically on system startup
 
 create a `kms.service` config file at `/etc/systemd/system/` 
@@ -87,9 +87,8 @@ ExecStart=/path/to/bot/.venv/bin/python3 /path/to/bot/main.py
 WantedBy=multi-user.target
 ```
 
-start the service 
+enable and start the service 
 ```
-systemctl daemon-reload
 systemctl enable kms
 systemctl start kms
 ```

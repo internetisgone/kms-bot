@@ -9,11 +9,6 @@ import logging
 
 load_dotenv()
 
-# for dev #
-# PROXY = "http://127.0.0.1:1087" 
-# DISCORD_KEY = os.getenv("DISCORD_KEY_TEST")
-
-# for production #
 PROXY = None
 DISCORD_KEY = os.getenv("DISCORD_KEY")
 
@@ -136,6 +131,7 @@ async def get_task_db(channel_id):
 def stop_task(channel_id):
     if channel_id in active_tasks:
         active_tasks[channel_id].stop()
+        del active_tasks[channel_id]
 
 def get_formatted_duration(dtime):
     seconds = int(dtime.total_seconds())
@@ -219,7 +215,6 @@ get help:
                 # try stop task
                 if msg.channel.id in active_tasks:
                     await stop_and_delete_task(msg.channel.id)
-                    del active_tasks[msg.channel.id] # remove from dict
                     await msg.channel.send(f"{bot.user.name} stopped.")
                 else: 
                     await msg.channel.send("nothing to stop in this channel.")
