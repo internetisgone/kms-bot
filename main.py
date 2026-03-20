@@ -22,8 +22,9 @@ logging.basicConfig(level = logging.INFO, format = "%(asctime)s %(levelname)s %(
 async def purge_channel(channel, dtime, self_msg_id):
     try:
         # logging.info(f"purging channel {channel.id}")
+        pins = await channel.pins()
         purged = await channel.purge(
-            limit = 100,
+            limit = 100 + len(pins),
             check = lambda msg: not msg.pinned and not msg.id == self_msg_id, 
             before = datetime.now() - dtime,
             oldest_first = True
