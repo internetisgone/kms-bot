@@ -19,6 +19,11 @@ MIN_DURATION = timedelta(seconds = 3)
 active_tasks = {} # key: channel id, value: task
 logging.basicConfig(level = logging.INFO, format = "%(asctime)s %(levelname)s %(process)d %(message)s")
 
+SUPPORTED_CHANNEL_TYPES = {
+    discord.ChannelType.text,
+    discord.ChannelType.voice,
+}
+
 async def purge_channel(channel, dtime, self_msg_id):
     try:
         # logging.info(f"purging channel {channel.id}")
@@ -165,9 +170,9 @@ def run_bot():
                 channel_id, dtime = task
                 channel = bot.get_channel(channel_id)
                 dtime = timedelta(seconds = dtime)
-                if (not channel or channel.type != discord.ChannelType.text):
+                if (not channel or channel.type not in SUPPORTED_CHANNEL_TYPES):
                     # delete invalid data 
-                    logging.warning(f"channel {channel_id} is not a text channel or kms has no access to it")             
+                    logging.warning(f"channel {channel_id} is not a supported channel type or kms has no access to it")             
                     await delete_task_db(channel_id)
                 else: 
                     logging.info(f"starting purge task in guild {channel.guild} channel {channel_id} with dtime {dtime}")
@@ -186,8 +191,8 @@ def run_bot():
         if not bot.user.mentioned_in(msg) or msg.author == bot.user or len(msg.mentions) != 1: ## or msg.mentions[0].id != bot.user.id:
             return
         # only support text channels for now
-        if msg.channel.type != discord.ChannelType.text:
-            await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels for now.")
+        if msg.channel.type not in SUPPORTED_CHANNEL_TYPES:
+            await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels and VC chats for now.")
             return
         try:
             msg_content = msg.content.lower()
